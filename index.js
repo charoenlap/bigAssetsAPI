@@ -2,25 +2,17 @@ const express = require('express');
 const { connect, sql,config } = require('./db');
 const app = express();
 const bodyParser = require("body-parser")
-// Connect to the database
 connect();
 app.use(bodyParser.urlencoded({
   extended:true
 }));
-// Allow GET requests
 app.get('/users', (req, res) => {
-  // Open a connection to the database
-  
   sql.connect(config, err => {
     if (err) {
       console.log(err);
       return res.status(500).send('Error connecting to database');
     }
-
-    // Define a SQL query
     const query = "SELECT * FROM [dbo].[user]";
-
-    // Execute the query
     sql.query(query, (err, result) => {
       console.log(result);
       if (err) {
@@ -32,61 +24,38 @@ app.get('/users', (req, res) => {
     });
   });
 });
-// Allow POST requests to add a new user
-app.post('/users', (req, res) => {
-  const { usergroup_id, position_id, username, password, name, lastname, phone, sex, date_create } = req.body;
-  const values = [usergroup_id, position_id, username, password, name, lastname, phone, sex, date_create];
-  
-  let  pool =  sql.connect(config, err => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send('Error connecting to database');
-    }
-  });
+app.post('/users', async (req, res) => {
   try {
-    let message = "";
-    pool.request()
-      .input('usergroup_id', sql.Int, usergroup_id)
-      .input('position_id', sql.Int, position_id)
-      .input('username', sql.NVarChar(15), username)
-      .input('password', sql.NVarChar(15), password)
-      .input('name', sql.NVarChar(20), name)
-      .input('lastname', sql.NVarChar(30), lastname)
-      .input('phone', sql.NVarChar(10), phone)
-      .input('sex', sql.NVarChar(2), sex)
-      .output('message', sql.NVarChar(50))
-      .execute('InserUser', function(err, returnValue) {
-        if (err){
-          const errorResult = {
-            code: 'E0001',
-            message: err
-          };
-        
-          // Send the error response as a JSON object
-          res.status(500).json({
-            success: false,
-            error: errorResult
-          });
-        }
-        console.log(returnValue);
-        message = returnValue.output.message;
-        res.status(200).json({
-          success: true,
-          message: message,
-          data: values
-        });
+    const inputs = req.body;
+    const pool = sql.connect(config);
+    const request = pool.request();
+    const output = { message: sql.NVarChar(50) };
+
+    for (const [key, value] of Object.entries(inputs)) {
+      request.input(key, sql.NVarChar(value.length), value);
+    }
+
+    request.output('message', sql.NVarChar(50));
+
+    const result = await request.execute('InsertUser');
+
+    const message = result.output.message;
+    const values = [usergroup_id, position_id, username, password, name, lastname, phone, sex, date_create];
+    res.status(200).json({
+      success: true,
+      message: message,
+      data: values
     });
-  } catch (error) {
-      const errorResult = {
-        code: 'E0001',
-        message: 'An error occurred while retrieving data'
-      };
-    
-      // Send the error response as a JSON object
-      res.status(500).json({
-        success: false,
-        error: errorResult
-      });
+  } catch (err) {
+    console.log(err);
+    const errorResult = {
+      code: 'E0001',
+      message: 'An error occurred while inserting data'
+    };
+    res.status(500).json({
+      success: false,
+      error: errorResult
+    });
   }
 });
 
@@ -142,8 +111,6 @@ app.delete('/users/:id', (req, res) => {
             code: 'E0001',
             message: err
           };
-        
-          // Send the error response as a JSON object
           res.status(500).json({
             success: false,
             error: errorResult
@@ -161,8 +128,6 @@ app.delete('/users/:id', (req, res) => {
         code: 'E0001',
         message: 'An error occurred while retrieving data'
       };
-    
-      // Send the error response as a JSON object
       res.status(500).json({
         success: false,
         error: errorResult
@@ -170,8 +135,6 @@ app.delete('/users/:id', (req, res) => {
   }
 });
 
-
-// Start the server
 app.listen(3003, () => {
   console.log('Server started on port 3003');
 });
