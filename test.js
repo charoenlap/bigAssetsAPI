@@ -1,9 +1,18 @@
 const express = require('express');
-const { connect, sql } = require('./db');
+const sql = require('mssql');
 const app = express();
 
-// Connect to the database
-connect();
+// Create a configuration object for the database connection
+const config = {
+  user: 'BIG_EES_USER',
+  password: 'BigEes@2565',
+  server: '43.254.133.31',
+  database: 'BIG_EES_DB',
+  options: {
+    encrypt: true, // use SSL encryption
+    trustServerCertificate: true // accept the server's SSL certificate
+  }
+};
 
 // Allow GET requests
 app.get('/users', (req, res) => {
@@ -30,7 +39,8 @@ app.get('/users', (req, res) => {
     });
   });
 });
-// Allow POST requests to add a new user
+
+// Allow POST requests
 app.post('/users', (req, res) => {
   // Open a connection to the database
   sql.connect(config, err => {
@@ -39,11 +49,11 @@ app.post('/users', (req, res) => {
       return res.status(500).send('Error connecting to database');
     }
 
-    // Extract the user data from the request body
-    const { id, password, name, lastname } = req.body;
+    // Get the user data from the request body
+    const { username, password, name, lastname } = req.body;
 
     // Define a SQL query
-    const query = `INSERT INTO [dbo].[user] (id, password, name, lastname) VALUES ('${id}', '${password}', '${name}', '${lastname}')`;
+    const query = `INSERT INTO user (username, password, name, lastname) VALUES ('${username}', '${password}', '${name}', '${lastname}')`;
 
     // Execute the query
     sql.query(query, (err, result) => {
@@ -57,8 +67,8 @@ app.post('/users', (req, res) => {
   });
 });
 
-// Allow PUT requests to update an existing user
-app.put('/users/:id', (req, res) => {
+// Allow PUT requests
+app.put('/users/:username', (req, res) => {
   // Open a connection to the database
   sql.connect(config, err => {
     if (err) {
@@ -66,14 +76,14 @@ app.put('/users/:id', (req, res) => {
       return res.status(500).send('Error connecting to database');
     }
 
-    // Extract the updated user data from the request body
+    // Get the username from the request parameters
+    const { username } = req.params;
+
+    // Get the user data from the request body
     const { password, name, lastname } = req.body;
 
-    // Extract the id from the request parameters
-    const { id } = req.params;
-
     // Define a SQL query
-    const query = `UPDATE [dbo].[user] SET password = '${password}', name = '${name}', lastname = '${lastname}' WHERE id = '${id}'`;
+    const query = `UPDATE user SET password = '${password}', name = '${name}', lastname = '${lastname}' WHERE username = '${username}'`;
 
     // Execute the query
     sql.query(query, (err, result) => {
@@ -88,33 +98,11 @@ app.put('/users/:id', (req, res) => {
 });
 
 // Allow DELETE requests
-app.delete('/users/:id', (req, res) => {
-  // Open a connection to the database
-  sql.connect(config, err => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send('Error connecting to database');
-    }
-
-    // Extract the user ID from the request parameters
-    const { id } = req.params;
-
-    // Define a SQL query to delete the specified user
-    const query = `DELETE FROM [dbo].[user] WHERE id = '${id}'`;
-
-    // Execute the query
-    sql.query(query, (err, result) => {
-      if (err) {
-        console.log(err);
-        return res.status(500).send('Error executing query');
-      }
-
-      res.send('User deleted successfully');
-    });
-  });
+app.delete('/delete', (req, res) => {
+  // Handle DELETE request here
 });
 
 // Start the server
-app.listen(3003, () => {
-  console.log('Server started on port 3003');
+app.listen(3000, () => {
+  console.log('Server started on port 3000');
 });

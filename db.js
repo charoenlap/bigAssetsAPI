@@ -11,7 +11,6 @@ const config = {
     trustServerCertificate: true // accept the server's SSL certificate
   }
 };
-
 async function connect() {
   try {
     await sql.connect(config);
@@ -21,4 +20,4 @@ async function connect() {
   }
 }
 
-module.exports = { connect, sql };
+module.exports = { connect, sql,config };
