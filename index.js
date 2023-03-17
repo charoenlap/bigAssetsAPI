@@ -12,7 +12,7 @@ app.get('/users/:id', (req, res) => {
   request.input('PageNum', sql.Int, 1);
   request.input('PageSize', sql.Int, 10);
   request.input('UserIds', sql.NVarChar(sql.MAX), userId);
-  request.execute('UserSelect', (err, result) => {
+  request.execute('SelectUser', (err, result) => {
     if (err) {
       console.log(err);
       return res.status(500).send('Error executing stored procedure');
@@ -31,7 +31,7 @@ app.get('/users', (req, res) => {
     }
     const pageNum = req.query.pageNum || 1;
     const pageSize = req.query.pageSize || 10;
-    const query = `EXEC [dbo].[UserSelect] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    const query = `EXEC [dbo].[SelectUser] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
     sql.query(query, (err, result) => {
       console.log(result);
       if (err) {
@@ -65,7 +65,7 @@ app.post('/users', (req, res) => {
       .input('phone', sql.NVarChar(10), phone)
       .input('sex', sql.NVarChar(2), sex)
       .output('message', sql.NVarChar(50))
-      .execute('UserInsert', function(err, returnValue) {
+      .execute('AddUser', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
@@ -112,7 +112,7 @@ app.put('/users/:id', (req, res) => {
       .input('phone', sql.NVarChar(10), phone)
       .input('sex', sql.NVarChar(2), sex)
       .output('message', sql.NVarChar(50))
-      .execute('UserUpdate');
+      .execute('UpdateUser');
   }).then(result => {
     message = result.output.message;
     res.status(200).json({
@@ -139,7 +139,7 @@ app.delete('/users/:id', (req, res) => {
     pool.request()
       .input('user_id', sql.Int, req.params.id)
       .output('message', sql.NVarChar(50))
-      .execute('UserDelete', function(err, returnValue) {
+      .execute('DeleteUser', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
@@ -168,6 +168,668 @@ app.delete('/users/:id', (req, res) => {
       });
   }
 });
+
+app.get('/actions/:id', (req, res) => {
+  const actionId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('ActionIds', sql.NVarChar(sql.MAX), actionId);
+  request.execute('[dbo].[SelectAction]', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('Action not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/actions', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectAction] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/actions', (req, res) => {
+  const { name, path, url } = req.body;
+  const values = [name, path, url];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('name', sql.NVarChar(100), name)
+      .input('path', sql.NVarChar(100), path)
+      .input('url', sql.NVarChar(100), url)
+      .output('message', sql.NVarChar(50))
+      .execute('AddAction', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/actions/:id', (req, res) => {
+  const { name, path, url } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('action_id', sql.Int, id)
+      .input('name', sql.NVarChar(100), name)
+      .input('path', sql.NVarChar(100), path)
+      .input('url', sql.NVarChar(100), url)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateAction');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the action'
+    });
+  });
+});
+app.delete('/actions/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('action_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteAction', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/advances/:id', (req, res) => {
+  const advanceId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('AdvanceIds', sql.NVarChar(sql.MAX), advanceId);
+  request.execute('[dbo].[SelectAdvance]', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('Advance not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/advances', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectAdvance] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/advances', (req, res) => {
+  const { flag_draff, advance_no, advance_date, status, del, advance_by_user_id, advance_for_user_id, pay_to_id, total_amount, total_base_vat, total_vat, total_withholding_tax, total_withholding_tax_big_absorb, total_expense, direct_to_user_id, note, posting_date, baseline_date, send_sap, finance, account, advance_type_id } = req.body;
+  const values = [flag_draff, advance_no, advance_date, status, del, advance_by_user_id, advance_for_user_id, pay_to_id, total_amount, total_base_vat, total_vat, total_withholding_tax, total_withholding_tax_big_absorb, total_expense, direct_to_user_id, note, posting_date, baseline_date, send_sap, finance, account, advance_type_id];
+
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('flag_draff', sql.Int, flag_draff)
+      .input('advance_no', sql.NVarChar(10), advance_no)
+      .input('advance_date', sql.DateTime, advance_date)
+      .input('status', sql.Int, status)
+      .input('del', sql.Int, del)
+      .input('advance_by_user_id', sql.Int, advance_by_user_id)
+      .input('advance_for_user_id', sql.Int, advance_for_user_id)
+      .input('pay_to_id', sql.Int, pay_to_id)
+      .input('total_amount', sql.Float, total_amount)
+      .input('total_base_vat', sql.Float, total_base_vat)
+      .input('total_vat', sql.Float, total_vat)
+      .input('total_withholding_tax', sql.Float, total_withholding_tax)
+      .input('total_withholding_tax_big_absorb', sql.Float, total_withholding_tax_big_absorb)
+      .input('total_expense', sql.Float, total_expense)
+      .input('direct_to_user_id', sql.Int, direct_to_user_id)
+      .input('note', sql.NVarChar(sql.MAX), note)
+      .input('posting_date', sql.DateTime, posting_date)
+      .input('baseline_date', sql.DateTime, baseline_date)
+      .input('send_sap', sql.Int, send_sap)
+      .input('finance', sql.Int, finance)
+      .input('account', sql.Int, account)
+      .input('advance_type_id', sql.Int, advance_type_id)
+      .output('message', sql.NVarChar(50))
+      .execute('AddAdvance', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/advances/:id', (req, res) => {
+  const { flag_draff, advance_no, advance_date, status, del, advance_by_user_id, advance_for_user_id, pay_to_id, total_amount, total_base_vat, total_vat, total_withholding_tax, total_withholding_tax_big_absorb, total_expense, direct_to_user_id, note, posting_date, baseline_date, send_sap, finance, account, advance_type_id } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('advance_id', sql.Int, id)
+      .input('flag_draff', sql.Int, flag_draff)
+      .input('advance_no', sql.NVarChar(10), advance_no)
+      .input('advance_date', sql.DateTime, advance_date)
+      .input('status', sql.Int, status)
+      .input('del', sql.Int, del)
+      .input('advance_by_user_id', sql.Int, advance_by_user_id)
+      .input('advance_for_user_id', sql.Int, advance_for_user_id)
+      .input('pay_to_id', sql.Int, pay_to_id)
+      .input('total_amount', sql.Float, total_amount)
+      .input('total_base_vat', sql.Float, total_base_vat)
+      .input('total_vat', sql.Float, total_vat)
+      .input('total_withholding_tax', sql.Float, total_withholding_tax)
+      .input('total_withholding_tax_big_absorb', sql.Float, total_withholding_tax_big_absorb)
+      .input('total_expense', sql.Float, total_expense)
+      .input('direct_to_user_id', sql.Int, direct_to_user_id)
+      .input('note', sql.NVarChar(sql.MAX), note)
+      .input('posting_date', sql.DateTime, posting_date)
+      .input('baseline_date', sql.DateTime, baseline_date)
+      .input('send_sap', sql.Int, send_sap)
+      .input('finance', sql.Int, finance)
+      .input('account', sql.Int, account)
+      .input('advance_type_id', sql.Int, advance_type_id)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateAdvance');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the advance'
+    });
+  });
+});
+app.delete('/advances/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('advance_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteAdvance', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/advance-attachments/:id', (req, res) => {
+  const attachId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('AdvanceAttachIds', sql.NVarChar(sql.MAX), attachId);
+  request.execute('[dbo].[SelectAdvanceAttach]', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('Advance attachment not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/advance-attachments', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectAdvanceAttach] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/advance-attachments', (req, res) => {
+  const { advance_attach_id, name, path, date_create } = req.body;
+  const values = [advance_attach_id, name, path, date_create];
+
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('advance_attach_id', sql.Int, advance_attach_id)
+      .input('name', sql.NVarChar(100), name)
+      .input('path', sql.NVarChar(100), path)
+      .input('date_create', sql.DateTime, date_create)
+      .output('message', sql.NVarChar(50))
+      .execute('AddAdvanceAttach', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/advances-attachments/:id', (req, res) => {
+  const { advance_attach_id, name, path, date_create } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('advance_attach_id', sql.Int, advance_attach_id)
+      .input('name', sql.NVarChar(100), name)
+      .input('path', sql.NVarChar(100), path)
+      .input('date_create', sql.DateTime, date_create)
+      .input('id', sql.Int, id)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateAdvanceAttach');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the advance attachment'
+    });
+  });
+});
+app.delete('/advances-attachments/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('advance_attach_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteAdvanceAttach', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/advance-detail/:id', (req, res) => {
+  const attachId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('AdvanceDetailIds', sql.NVarChar(sql.MAX), attachId);
+  request.execute('[dbo].[SelectAdvanceDetail]', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('Advance attachment not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/advance-detail', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectAdvanceDetail] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/advance-detail', (req, res) => {
+  const { advance_id, descreption, cost_center, amount, base_vat, vat, absorb, wht, date_create } = req.body;
+  const values = [advance_id, descreption, cost_center, amount, base_vat, vat, absorb, wht, date_create];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('advance_id', sql.Int, advance_id)
+      .input('descreption', sql.NVarChar(sql.MAX), descreption)
+      .input('cost_center', sql.Float, cost_center)
+      .input('amount', sql.Float, amount)
+      .input('base_vat', sql.Float, base_vat)
+      .input('vat', sql.Float, vat)
+      .input('absorb', sql.Float, absorb)
+      .input('wht', sql.Float, wht)
+      .input('date_create', sql.DateTime, date_create)
+      .output('message', sql.NVarChar(50))
+      .execute('AddAdvanceDetail', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while inserting data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/advance-detail/:id', (req, res) => {
+  const { advance_id, description, cost_center, amount, base_vat, vat, absorb, wht, date_create } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('detail_id', sql.Int, id)
+      .input('advance_id', sql.Int, advance_id)
+      .input('description', sql.NVarChar(sql.MAX), description)
+      .input('cost_center', sql.Float, cost_center)
+      .input('amount', sql.Float, amount)
+      .input('base_vat', sql.Float, base_vat)
+      .input('vat', sql.Float, vat)
+      .input('absorb', sql.Float, absorb)
+      .input('wht', sql.Float, wht)
+      .input('date_create', sql.DateTime, date_create)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateAdvanceDetail');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the advance detail'
+    });
+  });
+});
+app.delete('/advance-detail/:id', (req, res) => {
+  let pool = sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('advance_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteAdvance', function (err, returnValue) {
+        if (err) {
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+      });
+  } catch (error) {
+    const errorResult = {
+      code: 'E0001',
+      message: 'An error occurred while retrieving data'
+    };
+    res.status(500).json({
+      success: false,
+      error: errorResult
+    });
+  }
+});
+
+
 
 app.listen(3003, () => {
   console.log('Server started on port 3003');
