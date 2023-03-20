@@ -2338,14 +2338,14 @@ app.get('/expenses_type/:id', (req, res) => {
   const request = new sql.Request();
   request.input('PageNum', sql.Int, 1);
   request.input('PageSize', sql.Int, 10);
-  request.input('ExpenseTravellingAttachIds', sql.NVarChar(sql.MAX), userId);
-  request.execute('SelectExpenseTravellingAttachment', (err, result) => {
+  request.input('ExpenseTypeIds', sql.NVarChar(sql.MAX), userId);
+  request.execute('SelectExpenseType', (err, result) => {
     if (err) {
       console.log(err);
       return res.status(500).send('Error executing stored procedure');
     }
     if (result.recordset.length === 0) {
-      return res.status(404).send('ExpenseTravellingAttachment not found');
+      return res.status(404).send('ExpenseType not found');
     }
     res.send(result.recordset[0]);
   });
@@ -2358,7 +2358,7 @@ app.get('/expenses_type', (req, res) => {
     }
     const pageNum = req.query.pageNum || 1;
     const pageSize = req.query.pageSize || 10;
-    const query = `EXEC [dbo].[SelectExpenseTravellingAttachment] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    const query = `EXEC [dbo].[SelectExpenseType] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
     sql.query(query, (err, result) => {
       console.log(result);
       if (err) {
@@ -2371,8 +2371,8 @@ app.get('/expenses_type', (req, res) => {
   });
 });
 app.post('/expenses_type', (req, res) => {
-  const { request_te_expense_id, name, path, date_create } = req.body;
-  const values = [request_te_expense_id, name, path, date_create];
+  const { request_te_expense_id, name, date_create } = req.body;
+  const values = [request_te_expense_id, name, date_create];
   
   let  pool =  sql.connect(config, err => {
     if (err) {
@@ -2386,9 +2386,9 @@ app.post('/expenses_type', (req, res) => {
       .input('request_te_expense_id', sql.Int, request_te_expense_id)
       .input('name', sql.NVarChar(15), name)
       .input('path', sql.NVarChar(15), path)
-      .input('date_create', sql.DateTime, date_create)
+      .input('date_create', sql.DateTime, date_create)    
       .output('message', sql.NVarChar(50))
-      .execute('AddExpenseTravellingAttachment', function(err, returnValue) {
+      .execute('AddExpenseType', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
@@ -2419,19 +2419,19 @@ app.post('/expenses_type', (req, res) => {
   }
 });
 app.put('/expenses_type/:id', (req, res) => {
-  const { usergroup_id, position_id, username, password, name, lastname, phone, sex } = req.body;
+  const { request_te_expense_id, name, date_create } = req.body;
   const { id } = req.params;
   let message = '';
 
   sql.connect(config).then(pool => {
     return pool.request()
-      .input('te_expense_travelling_attatch_id', sql.Int, id)
+      .input('te_expense_type_id', sql.Int, id)
       .input('request_te_expense_id', sql.Int, request_te_expense_id)
       .input('name', sql.NVarChar(15), name)
       .input('path', sql.NVarChar(15), path)
-      .input('date_create', sql.DateTime, date_create)
+      .input('date_create', sql.DateTime, date_create) 
       .output('message', sql.NVarChar(50))
-      .execute('UpdateExpenseTravellingAttachment');
+      .execute('UpdateExpenseType');
   }).then(result => {
     message = result.output.message;
     res.status(200).json({
@@ -2442,7 +2442,7 @@ app.put('/expenses_type/:id', (req, res) => {
     console.log(err);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while updating the ExpenseTravellingAttachment'
+      message: 'An error occurred while updating the ExpenseType'
     });
   });
 });
@@ -2456,9 +2456,782 @@ app.delete('/expenses_type/:id', (req, res) => {
   try {
     let message = "";
     pool.request()
-      .input('te_expense_travelling_attatch_id', sql.Int, req.params.id)
+      .input('te_expense_type_id', sql.Int, req.params.id)
       .output('message', sql.NVarChar(50))
-      .execute('DeleteExpenseTravellingAttachment', function(err, returnValue) {
+      .execute('DeleteExpenseType', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/news/:id', (req, res) => {
+  const userId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('NewsIds', sql.NVarChar(sql.MAX), userId);
+  request.execute('SelectUser', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/news', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectNews] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/news', (req, res) => {
+  const { news_title, news_detail, seq, del } = req.body;
+  const values = [news_title, news_detail, seq, del];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('news_detail', sql.NVarChar(sql.MAX), news_detail)
+      .input('seq', sql.Int, seq)
+      .input('del', sql.Int, del)
+      .output('message', sql.NVarChar(50))
+      .execute('AddUser', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/news/:id', (req, res) => {
+  const { news_title, news_detail, seq, del } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('news_id', sql.Int, id)
+      .input('news_detail', sql.NVarChar(sql.MAX), news_detail)
+      .input('seq', sql.Int, seq)
+      .input('del', sql.Int, del)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateUser');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the news'
+    });
+  });
+});
+app.delete('/news/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('news_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteUser', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/notification/:id', (req, res) => {
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('NotificationIds', sql.NVarChar(sql.MAX), req.params.id);
+  request.execute('SelectNotification', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('Notification not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/notification', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectNotification] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/notification', (req, res) => {
+  const { notification_id, user_id, title, description, flag_view, date_create } = req.body;
+  const values = [notification_id, user_id, title, description, flag_view, date_create];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('user_id', sql.Int, user_id)
+      .input('title', sql.NVarChar(100), title)
+      .input('description', sql.NVarChar(sql.MAX), description)
+      .input('flag_view', sql.Int, flag_view)
+      .input('date_create', sql.DateTime, date_create)
+      .input('usergroup_id', sql.Int, usergroup_id)
+      .input('position_id', sql.Int, position_id)
+      .output('message', sql.NVarChar(50))
+      .execute('AddNotification', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/notification/:id', (req, res) => {
+  const { notification_id, user_id, title, description, flag_view, date_create } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('notification_id', sql.Int, notification_id)
+      .input('user_id', sql.Int, user_id)
+      .input('title', sql.NVarChar(100), title)
+      .input('description', sql.NVarChar(sql.MAX), description)
+      .input('flag_view', sql.Int, flag_view)
+      .input('date_create', sql.DateTime, date_create)
+      .input('usergroup_id', sql.Int, usergroup_id)
+      .input('position_id', sql.Int, position_id)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateNotification');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the notification'
+    });
+  });
+});
+app.delete('/notification/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('notification_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteNotification', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/userGroup/:id', (req, res) => {
+  const userId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('GroupIds', sql.NVarChar(sql.MAX), userId);
+  request.execute('SelectUserGroup', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/userGroup', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectUserGroup] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/userGroup', (req, res) => {
+  const { group_id, group_name } = req.body;
+  const values = [group_id, group_name];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('group_name', sql.NVarChar(15), group_name)
+      .execute('AddUserGroup', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/userGroup/:id', (req, res) => {
+  const { group_name } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('group_id', sql.Int, id)
+      .input('group_name', sql.NVarChar(50))
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateUserGroup');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the user'
+    });
+  });
+});
+app.delete('/userGroup/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('group_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeletUserGroup', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/userPermissionPage/:id', (req, res) => {
+  const userId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('PermissionPageIds', sql.NVarChar(sql.MAX), userId);
+  request.execute('SelectUserPermissionPage', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/userPermissionPage', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectUserPermissionPage] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/userPermissionPage', (req, res) => {
+  const { permission_page_id, group_id, user_add, user_edit, user_delete } = req.body;
+  const values = [permission_page_id, group_id, user_add, user_edit, user_delete];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('permission_page_id', sql.Int, permission_page_id)
+      .input('group_id', sql.Int, group_id)
+      .input('user_add', sql.NVarChar(15), user_add)
+      .input('user_edit', sql.NVarChar(15), user_edit)
+      .input('user_delete', sql.NVarChar(15), user_delete)
+      .output('message', sql.NVarChar(50))
+      .execute('AddUserPermissionPage', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/userPermissionPage/:id', (req, res) => {
+  const { permission_page_id, group_id, user_add, user_edit, user_delete } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('permission_page_id', sql.Int, permission_page_id)
+      .input('group_id', sql.Int, group_id)
+      .input('user_add', sql.NVarChar(15), user_add)
+      .input('user_edit', sql.NVarChar(15), user_edit)
+      .input('user_delete', sql.NVarChar(15), user_delete)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateUserPermissionPage');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the user'
+    });
+  });
+});
+app.delete('/userPermissionPage/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('permission_page_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteUserPermissionPage', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+
+app.get('/userPosition/:id', (req, res) => {
+  const userId = req.params.id;
+  const request = new sql.Request();
+  request.input('PageNum', sql.Int, 1);
+  request.input('PageSize', sql.Int, 10);
+  request.input('PositionIds', sql.NVarChar(sql.MAX), userId);
+  request.execute('SelectUserPosition', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+app.get('/userPosition', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const pageNum = req.query.pageNum || 1;
+    const pageSize = req.query.pageSize || 10;
+    const query = `EXEC [dbo].[SelectUserPosition] @PageNum = ${pageNum}, @PageSize = ${pageSize}`;
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/userPosition', (req, res) => {
+  const { position_id, privilege_level, position_name, max_withdraw, max_approve } = req.body;
+  const values = [position_id, privilege_level, position_name, max_withdraw, max_approve];
+  
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('position_id', sql.Int, position_id)
+      .input('privilege_level', sql.Int, privilege_level)
+      .input('position_name', sql.NVarChar(15), position_name)
+      .input('max_withdraw', sql.Float, max_withdraw)
+      .input('max_approve', sql.Float, max_approve)
+      .output('message', sql.NVarChar(50))
+      .execute('AddUserPosition', function(err, returnValue) {
+        if (err){
+          const errorResult = {
+            code: 'E0001',
+            message: err
+          };
+          res.status(500).json({
+            success: false,
+            error: errorResult
+          });
+        }
+        console.log(returnValue);
+        message = returnValue.output.message;
+        res.status(200).json({
+          success: true,
+          message: message,
+          data: values
+        });
+    });
+  } catch (error) {
+      const errorResult = {
+        code: 'E0001',
+        message: 'An error occurred while retrieving data'
+      };
+      res.status(500).json({
+        success: false,
+        error: errorResult
+      });
+  }
+});
+app.put('/userPosition/:id', (req, res) => {
+  const { position_id, privilege_level, position_name, max_withdraw, max_approve } = req.body;
+  const { id } = req.params;
+  let message = '';
+
+  sql.connect(config).then(pool => {
+    return pool.request()
+      .input('position_id', sql.Int, position_id)
+      .input('privilege_level', sql.Int, privilege_level)
+      .input('position_name', sql.NVarChar(15), position_name)
+      .input('max_withdraw', sql.Float, max_withdraw)
+      .input('max_approve', sql.Float, max_approve)
+      .output('message', sql.NVarChar(50))
+      .execute('UpdateUserPosition');
+  }).then(result => {
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message
+    });
+  }).catch(err => {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating the user'
+    });
+  });
+});
+app.delete('/userPosition/:id', (req, res) => {
+  let  pool =  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+  });
+  try {
+    let message = "";
+    pool.request()
+      .input('position_id', sql.Int, req.params.id)
+      .output('message', sql.NVarChar(50))
+      .execute('DeleteUserPosition', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
