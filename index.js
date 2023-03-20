@@ -1,8 +1,10 @@
 const express = require('express');
 const { connect, sql,config } = require('./db');
+const cors = require('cors');
 const app = express();
 const bodyParser = require("body-parser")
 connect();
+app.use(cors());
 app.use(bodyParser.urlencoded({
   extended:true
 }));
