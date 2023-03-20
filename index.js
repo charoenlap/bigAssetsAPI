@@ -3141,7 +3141,7 @@ app.get('/userPosition', (req, res) => {
       res.send(result.recordset);
     });
   });
-});
+}); 
 app.post('/userPosition', (req, res) => {
   const { position_id, privilege_level, position_name, max_withdraw, max_approve } = req.body;
   const values = [position_id, privilege_level, position_name, max_withdraw, max_approve];
