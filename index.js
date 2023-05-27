@@ -76,7 +76,7 @@ app.post('/users', (req, res) => {
       .input('phone', sql.NVarChar(10), phone)
       .input('sex', sql.NVarChar(2), sex)
       .output('message', sql.NVarChar(50))
-      .execute('AddUser', function(err, returnValue) {
+      .execute('Permission', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
@@ -1302,7 +1302,8 @@ app.get('/expenses/:id', async (req, res) => {
       .input('PageSize', sql.Int, 10)
       .input('ExpenseIds', sql.NVarChar(sql.MAX), expenseId)
       // .execute('[dbo].[SelectExpense]');
-      .execute('[dbo].[SelectTEExpense]');
+      // .execute('[dbo].[SelectTEExpense]');
+      .execute('SelectTEExpense');
     
     if (result.recordset.length === 0) {
       return res.status(404).send('Expense not found');
@@ -1332,8 +1333,8 @@ app.get('/expenses', async (req, res) => {
   }
 });
 app.post('/expenses', async (req, res) => {
-  const { te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type } = req.body;
-  const values = [te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type];
+  const { te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type, EMP_CODE, COST_CENTER_CODE, direct_to } = req.body;
+  const values = [te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type, EMP_CODE, COST_CENTER_CODE, direct_to];
   
   try {
     const pool = await sql.connect(config);
@@ -1356,6 +1357,9 @@ app.post('/expenses', async (req, res) => {
       .input('account_status', sql.Int, account_status)
       .input('date_add', sql.DateTime, date_add)
       .input('expense_type', sql.NVarChar(10), expense_type)
+      .input('EMP_CODE', sql.NVarChar(50), EMP_CODE)
+      .input('COST_CENTER_CODE', sql.NVarChar(20), COST_CENTER_CODE)
+      .input('direct_to', sql.NVarChar(20), direct_to)
       .output('message', sql.NVarChar(50))
       .execute('[dbo].[AddExpense]');
     
@@ -1379,8 +1383,8 @@ app.post('/expenses', async (req, res) => {
 });
 app.put('/expenses/:id', async (req, res) => {
   const expenseId = req.params.id;
-  const { te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type } = req.body;
-  const values = [te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, date_add, expense_type];
+  const { te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, direct_to } = req.body;
+  const values = [te_expense_type_id, flag_draft, claim_no, claim_date, initials, amount, km, allowance, status, del, te_expense_by_user_id, te_expense_for_user_id, cost_center_user_id, finance_status, account_status, direct_to];
   
   try {
     const pool = await sql.connect(config);
@@ -1402,6 +1406,7 @@ app.put('/expenses/:id', async (req, res) => {
       .input('cost_center_user_id', sql.Int, cost_center_user_id)
       .input('finance_status', sql.Int, finance_status)
       .input('account_status', sql.Int, account_status)
+      .input('direct_to', sql.NVarChar(20), direct_to)
       // .input('date_add', sql.DateTime, date_add)
       // .input('expense_type', sql.NVarChar(10), expense_type)
       .output('message', sql.NVarChar(50))
@@ -2038,16 +2043,17 @@ app.post('/expenses_process', (req, res) => {
   }
 });
 app.put('/expenses_process/:id', (req, res) => {
-  const { te_expense_id, account_approve, hc_approve } = req.body;
+  const { te_expense_id, account_approve, hc_approve, manager_approve } = req.body;
   const { id } = req.params;
   let message = '';
 
   sql.connect(config).then(pool => {
     return pool.request()
-      .input('te_expense_process_id', sql.Int, id)
-      .input('te_expense_id', sql.Int, te_expense_id)
+      // .input('te_expense_process_id', sql.Int, id)
+      .input('te_expense_id', sql.Int, id)
       .input('account_approve', sql.Int, account_approve)
       .input('hc_approve', sql.Int, hc_approve)
+      .input('manager_approve', sql.Int, manager_approve)
       .output('message', sql.NVarChar(50))
       .execute('UpdateTEExpenseProcess');
   }).then(result => {
@@ -2146,8 +2152,8 @@ app.get('/expenses_travelling', (req, res) => {
   });
 });
 app.post('/expenses_travelling', (req, res) => {
-  const { te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end } = req.body;
-  const values = [te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end];
+  const { te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end, travelling_form_other, travelling_to_other } = req.body;
+  const values = [te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end, travelling_form_other, travelling_to_other];
   
   let  pool =  sql.connect(config, err => {
     if (err) {
@@ -2158,24 +2164,24 @@ app.post('/expenses_travelling', (req, res) => {
   try {
     let message = "";
     pool.request()
-        .input('te_expense_id', sql.Int, te_expense_id)
-        .input('date', sql.DateTime, date)
-        .input('objectives', sql.NVarChar(15), objectives)
-        .input('travelling_form', sql.NVarChar(15), travelling_form)
-        .input('travelling_to', sql.NVarChar(15), travelling_to)
-        .input('km', sql.Float(53), km)
-        .input('cost_all_days', sql.Float(53), cost_all_days)
-        .input('claim', sql.NVarChar(10), claim)
-        .input('round_trip', sql.NVarChar(10), round_trip)
-        .input('unit_rate', sql.NVarChar(10), unit_rate)
-        .input('request_perdium', sql.NVarChar(10), request_perdium)
-        .input('total_perdium', sql.NVarChar(10), total_perdium)
-        .input('date_start', sql.DateTime, date_start)
-        .input('date_end', sql.DateTime, date_end)
-        // .output('te_expense_travelling_id', sql.Int)
-        // .execute('[dbo].[AddTEExpenseTravelling]');
-        .output('message', sql.NVarChar(50))
-        .execute('[dbo].[AddExpenseTravelling]');
+      .input('te_expense_id', sql.Int, te_expense_id)
+      .input('date', sql.DateTime, date)
+      .input('objectives', sql.NVarChar(15), objectives)
+      .input('travelling_form', sql.NVarChar(15), travelling_form)
+      .input('travelling_to', sql.NVarChar(15), travelling_to)
+      .input('km', sql.Float(53), km)
+      .input('cost_all_days', sql.Float(53), cost_all_days)
+      .input('claim', sql.NVarChar(10), claim)
+      .input('round_trip', sql.NVarChar(10), round_trip)
+      .input('unit_rate', sql.NVarChar(10), unit_rate)
+      .input('request_perdium', sql.NVarChar(10), request_perdium)
+      .input('total_perdium', sql.NVarChar(10), total_perdium)
+      .input('date_start', sql.DateTime, date_start)
+      .input('date_end', sql.DateTime, date_end)
+      .input('travelling_form_other', sql.NVarChar(100), travelling_form_other)
+      .input('travelling_to_other', sql.NVarChar(100), travelling_to_other)
+      .output('message', sql.NVarChar(50))
+      .execute('AddExpenseTravelling', function(err, returnValue) {
         if (err){
           const errorResult = {
             code: 'E0001',
@@ -2193,6 +2199,7 @@ app.post('/expenses_travelling', (req, res) => {
           message: message,
           data: values
         });
+    });
   } catch (error) {
       const errorResult = {
         code: 'E0001',
@@ -2204,6 +2211,67 @@ app.post('/expenses_travelling', (req, res) => {
       });
   }
 });
+// app.post('/expenses_travelling', (req, res) => {
+//   const { te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end, travelling_form_other, travelling_to_other } = req.body;
+//   const values = [te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days, claim, round_trip, unit_rate, request_perdium, total_perdium, date_start, date_end, travelling_form_other, travelling_to_other];
+  
+//   let  pool =  sql.connect(config, err => {
+//     if (err) {
+//       console.log(err);
+//       return res.status(500).send('Error connecting to database');
+//     }
+//   });
+//   try {
+//     let message = "";
+//     pool.request()
+//         .input('te_expense_id', sql.Int, te_expense_id)
+//         .input('date', sql.DateTime, date)
+//         .input('objectives', sql.NVarChar(15), objectives)
+//         .input('travelling_form', sql.NVarChar(15), travelling_form)
+//         .input('travelling_to', sql.NVarChar(15), travelling_to)
+//         .input('km', sql.Float(53), km)
+//         .input('cost_all_days', sql.Float(53), cost_all_days)
+//         .input('claim', sql.NVarChar(10), claim)
+//         .input('round_trip', sql.NVarChar(10), round_trip)
+//         .input('unit_rate', sql.NVarChar(10), unit_rate)
+//         .input('request_perdium', sql.NVarChar(10), request_perdium)
+//         .input('total_perdium', sql.NVarChar(10), total_perdium)
+//         .input('date_start', sql.DateTime, date_start)
+//         .input('date_end', sql.DateTime, date_end)
+//         .input('travelling_form_other', sql.NVarChar(100), travelling_form_other)
+//         .input('travelling_to_other', sql.NVarChar(100), travelling_to_other)
+//         // .output('te_expense_travelling_id', sql.Int)
+//         // .execute('[dbo].[AddTEExpenseTravelling]');
+//         .output('message', sql.NVarChar(50))
+//         .execute('[dbo].[AddExpenseTravelling]');
+//         if (err){
+//           const errorResult = {
+//             code: 'E0001',
+//             message: err
+//           };
+//           res.status(500).json({
+//             success: false,
+//             error: errorResult
+//           });
+//         }
+//         console.log(returnValue);
+//         message = returnValue.output.message;
+//         res.status(200).json({
+//           success: true,
+//           message: message,
+//           data: values
+//         });
+//   } catch (error) {
+//       const errorResult = {
+//         code: 'E0001',
+//         message: 'An error occurred while retrieving data'
+//       };
+//       res.status(500).json({
+//         success: false,
+//         error: errorResult
+//       });
+//   }
+// });
 app.put('/expenses_travelling/:id', (req, res) => {
   const { te_expense_id, date, objectives, travelling_form, travelling_to, km, cost_all_days } = req.body;
   const { id } = req.params;
@@ -3466,7 +3534,7 @@ app.get('/selectTEprocessUser/:id', (req, res) =>{
       return res.status(500).send('Error connecting to database');
     }
     const id = req.params.id;
-    const query = "SELECT a.*,b.account_approve as status_account,b.hc_approve as status_hc FROM dbo.db_te_expense a LEFT JOIN dbo.db_te_expense_process b ON a.te_expense_id = b.te_expense_id";
+    const query = "SELECT a.*,b.account_approve as status_account,b.hc_approve as status_hc,c.name as status_name,d.INITIALS as INITIALS FROM dbo.db_te_expense a LEFT JOIN dbo.db_te_expense_process b ON a.te_expense_id = b.te_expense_id LEFT JOIN db_status_project c ON a.status = c.id LEFT JOIN Employee d ON a.EMP_CODE = d.EMP_CODE WHERE a.EMP_CODE = "+id+"";
     sql.query(query, (err, result) => {
       console.log(result);
       if (err) {
@@ -3515,6 +3583,42 @@ app.get('/approveTEprocess/:id/:account_approve/:hc_approve/:manager_approve', (
         return res.status(500).send('Error executing query');
       }
       res.send(result.rowsAffected);
+    });
+  });
+});
+app.get('/selectTElists/:emp_code', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const emp_code = req.params.emp_code;
+    const query = "SELECT a.*,b.name as status_name,c.INITIALS as INITIALS FROM dbo.db_te_expense a LEFT JOIN dbo.db_status_project b ON a.status = b.id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE WHERE a.direct_to = "+emp_code+" AND a.flag_draft = 0";
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.get('/selectTElistsManager', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const emp_code = req.params.emp_code;
+    const query = "SELECT a.*,b.name as status_name,c.INITIALS as INITIALS,d.account_approve as account_approve,d.hc_approve as hc_approve FROM dbo.db_te_expense a LEFT JOIN dbo.db_status_project b ON a.status = b.id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_te_expense_process d ON a.te_expense_id = d.te_expense_id WHERE d.manager_approve = 1";
+    sql.query(query, (err, result) => {
+      console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
     });
   });
 });
@@ -3615,6 +3719,24 @@ app.get('/advances-lists/:emp_code', (req, res) => {
     });
   });
 });
+app.get('/advances-lists-manager/:emp_code', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const emp_code = req.params.emp_code;
+    const query = "SELECT a.*,b.status as status_process,c.INITIALS as initials, d.name as status_name FROM dbo.db_advance a LEFT JOIN dbo.db_advance_process b ON a.advance_id = b.advance_id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_status_project d ON b.status = d.id WHERE a.direct_to = "+emp_code+" AND flag_draft = 0";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
 app.get('/advances-finance-lists', (req, res) => {
   sql.connect(config, err => {
     if (err) {
@@ -3622,7 +3744,7 @@ app.get('/advances-finance-lists', (req, res) => {
       return res.status(500).send('Error connecting to database');
     }
     const emp_code = req.params.emp_code;
-    const query = "SELECT a.*,b.status as status_process,c.INITIALS as initials, d.name as status_name FROM dbo.db_advance a LEFT JOIN dbo.db_advance_process b ON a.advance_id = b.advance_id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_status_project d ON b.status = d.id WHERE a.flag_draft < 1";
+    const query = "SELECT a.*,b.status as status_process,c.INITIALS as initials, d.name as status_name FROM dbo.db_advance a LEFT JOIN dbo.db_advance_process b ON a.advance_id = b.advance_id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_status_project d ON b.status = d.id WHERE a.flag_draft < 1 AND b.approve_manager = 1";
     sql.query(query, (err, result) => {
       // console.log(result);
       if (err) {
@@ -3634,8 +3756,8 @@ app.get('/advances-finance-lists', (req, res) => {
   });
 });
 app.post('/advances', async (req, res) => {
-  const { flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, EMP_CODE } = req.body;
-  const values = [flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, EMP_CODE];
+  const { flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, EMP_CODE,direct_to } = req.body;
+  const values = [flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, EMP_CODE,direct_to];
   
   try {
     const pool = await sql.connect(config);
@@ -3680,6 +3802,7 @@ app.post('/advances', async (req, res) => {
       .input('bank_account', sql.NVarChar(255), bank_account)
       .input('bank_country', sql.NVarChar(255), bank_country)
       .input('EMP_CODE', sql.NVarChar(50), EMP_CODE)
+      .input('direct_to', sql.NVarChar(20), direct_to)
       .output('message', sql.NVarChar(50))
       .execute('[dbo].[AddAdvanceNew]');
     
@@ -3808,8 +3931,8 @@ app.put('/advances-process/:id', async (req, res) => {
 });
 app.put('/advances/:id', async (req, res) => {
   const advanceId = req.params.id;
-  const { flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country } = req.body;
-  const values = [flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country];
+  const { flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, direct_to } = req.body;
+  const values = [flag_draft, advance_no, request_date, status, payment_type, advance_type, advance_by_user_id, advance_by_costcenter, request_for, advance_for_user_id, advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, bank_branch_name, bank_account_name, bank_account, bank_country, direct_to];
   
   try {
     const pool = await sql.connect(config);
@@ -3854,6 +3977,7 @@ app.put('/advances/:id', async (req, res) => {
     .input('bank_account_name', sql.NVarChar(255), bank_account_name)
     .input('bank_account', sql.NVarChar(255), bank_account)
     .input('bank_country', sql.NVarChar(255), bank_country)
+    .input('direct_to', sql.NVarChar(20), direct_to)
     .output('message', sql.NVarChar(50))
     .execute('[dbo].[UpdateAdvance]');
     message = result.output.message;
@@ -4149,8 +4273,8 @@ app.get('/clear-advances-lists/:emp_code', (req, res) => {
   });
 });
 app.post('/clear-advances', async (req, res) => {
-  const { advance_id,flag_draft, clearadvance_no,advance_no, request_date, status, clear_advance_by_user_id, clear_advance_by_costcenter, clear_advance_for_user_id, clear_advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, invoice_no, invoice_date, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, EMP_CODE } = req.body;
-  const values = [advance_id,flag_draft, clearadvance_no,advance_no, request_date, status, clear_advance_by_user_id, clear_advance_by_costcenter, clear_advance_for_user_id, clear_advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, invoice_no, invoice_date, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, EMP_CODE];
+  const { advance_id,flag_draft, clearadvance_no,advance_no, request_date, status, clear_advance_by_user_id, clear_advance_by_costcenter, clear_advance_for_user_id, clear_advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, invoice_no, invoice_date, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, EMP_CODE, direct_to } = req.body;
+  const values = [advance_id,flag_draft, clearadvance_no,advance_no, request_date, status, clear_advance_by_user_id, clear_advance_by_costcenter, clear_advance_for_user_id, clear_advance_for_costcenter, posting_date, baseline_date, amount, description, finance, account, send_sap, invoice_no, invoice_date, vendor_tax_id, vendor_code, vendor_name, name1, name2, name3, name4, house_no, street1, street2, sub_district, district, province, postal_code, country, bank_name, EMP_CODE, direct_to];
   
   try {
     const pool = await sql.connect(config);
@@ -4191,6 +4315,7 @@ app.post('/clear-advances', async (req, res) => {
       .input('postal_code', sql.NVarChar(255), postal_code)
       .input('country', sql.NVarChar(255), country)
       .input('EMP_CODE', sql.NVarChar(50), EMP_CODE)
+      .input('direct_to', sql.NVarChar(20), direct_to)
       .output('message', sql.NVarChar(50))
       .execute('[dbo].[AddClearAdvance]');
     
@@ -4583,6 +4708,42 @@ app.delete('/clearadvance-detail/:id', (req, res) => {
       });
   }
 });
+app.get('/clear-advance-manager/:emp_code', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const emp_code = req.params.emp_code;
+    const query = "SELECT a.*,b.status as status_process,c.INITIALS as initials, d.name as status_name FROM dbo.db_clear_advance a LEFT JOIN dbo.db_clear_advance_process b ON a.clear_advance_id = b.clear_advance_id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_status_project d ON b.status = d.id WHERE a.flag_draft = 0 AND a.direct_to = "+emp_code+"";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.get('/clear-advance-account', (req, res) => {
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const emp_code = req.params.emp_code;
+    const query = "SELECT a.*,b.status as status_process,c.INITIALS as initials, d.name as status_name FROM dbo.db_clear_advance a LEFT JOIN dbo.db_clear_advance_process b ON a.clear_advance_id = b.clear_advance_id LEFT JOIN dbo.Employee c ON a.EMP_CODE = c.EMP_CODE LEFT JOIN dbo.db_status_project d ON b.status = d.id WHERE a.flag_draft = 0 AND b.approve_manager = 1";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
 // end clear advance
 
 app.post('/uploadsAdvance', (req, res) => {
@@ -4604,6 +4765,7 @@ app.post('/uploadsAdvance', (req, res) => {
       console.log('Image saved successfully');
       res.status(200).send('Image uploaded and saved successfully');
     }
+    res.render(filename);
   });
 });
 
@@ -4618,7 +4780,43 @@ app.get('/selectEmployee', (req, res) =>{
     const id = req.params.id;
     const query = "SELECT * FROM dbo.Employee";
     sql.query(query, (err, result) => {
-      console.log(result);
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.get('/selectEmployee-detail/:id', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const id = req.params.id;
+    const query = "SELECT * FROM dbo.Employee where EMP_CODE = "+id+"";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset[0]);
+    });
+  });
+});
+app.get('/selectTE-log/:id', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const id = req.params.id;
+    const query = "SELECT * FROM dbo.db_te_expense_log where te_expense_id = "+id+"";
+    sql.query(query, (err, result) => {
+      // console.log(result);
       if (err) {
         console.log(err);
         return res.status(500).send('Error executing query');
@@ -4648,6 +4846,96 @@ app.post('/login', (req, res) =>{
     });
   });
 });
+
+// user 
+app.get('/selectUserGroupLists', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const id = req.params.id;
+    const query = "SELECT * FROM user_group";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.get('/selectUserLists', (req, res) =>{
+  sql.connect(config, err => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error connecting to database');
+    }
+    const id = req.params.id;
+    const query = "SELECT * FROM dbo.user a LEFT JOIN dbo.user_group b ON a.usergroup_id = b.group_id";
+    sql.query(query, (err, result) => {
+      // console.log(result);
+      if (err) {
+        console.log(err);
+        return res.status(500).send('Error executing query');
+      }
+      res.send(result.recordset);
+    });
+  });
+});
+app.post('/addUserPermission', async (req, res) => {
+  const {email,usergroup_id} = req.body;
+  const values = [email,usergroup_id];
+  
+  try {
+    const pool = await sql.connect(config);
+    let message = "";
+    const result = await pool.request()
+    .input('position_id', sql.Int, '1') 
+    .input('usergroup_id', sql.Int, usergroup_id) 
+    .input('email', sql.NVarChar(50), email)
+    .output('message', sql.NVarChar(50))
+    .execute('[dbo].[AddUser]');
+    
+    message = result.output.message;
+    res.status(200).json({
+      success: true,
+      message: message,
+      data: values
+    });
+  } catch (err) {
+    console.log(err);
+    const errorResult = {
+      code: 'E0001',
+      message: 'An error occurred while retrieving data'
+    };
+    res.status(500).json({
+      success: false,
+      error: errorResult
+    });
+  }
+});
+app.post('/usersEmail/', (req, res) => {
+  const email = req.body.email;
+  const request = new sql.Request();
+  request.input('email', sql.NVarChar(255), email);
+  request.execute('signInEmail', (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send('Error executing stored procedure');
+    }
+    if (result.recordset.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    res.send(result.recordset[0]);
+  });
+});
+
+
+
+
+// ดึง id 
 
 app.listen(3003, () => {
   console.log('Server started on port 3003');
